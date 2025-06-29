@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Custom Interval Timer</title>
+  <style>
+    body {
+      background: #111;
+      color: white;
+      font-family: sans-serif;
+      text-align: center;
+      padding-top: 40px;
+    }
+    h1 {
+      font-size: 60px;
+    }
+    #phase {
+      font-size: 30px;
+      margin-bottom: 20px;
+    }
+    input {
+      width: 60px;
+      font-size: 18px;
+      margin: 5px;
+      text-align: center;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 18px;
+      margin: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="phase">Ready?</div>
+  <h1 id="timer">--:--</h1>
+
+  <div>
+    Workout Time (sec): <input type="number" id="workout" value="120"><br>
+    Rest Time (sec): <input type="number" id="rest" value="60"><br>
+    Sets: <input type="number" id="sets" value="4"><br>
+    Get Ready (sec): <input type="number" id="getready" value="10">
+  </div>
+
+  <div>
+    <button onclick="startTimer()">Begin</button>
+    <button onclick="stopTimer()">Stop</button>
+    <button onclick="resetTimer()">Reset</button>
+  </div>
+
+  <audio id="beep" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
+
+  <script>
+    let workoutTime = 120;
+    let restTime = 60;
+    let sets = 4;
+    let getReadyTime = 10;
+    let currentSet = 0;
+    let isRest = false;
+    let timeLeft = 0;
+    let timerInterval;
+    const timerEl = document.getElementById('timer');
+    const phaseEl = document.getElementById('phase');
+    const beep = document.getElementById('beep');
+
+    const synth = window.speechSynthesis;
+
+    function speak(text) {
+      if (!synth) return;
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.rate = 1;
+      synth.speak(utter);
+    }
+
+    function formatTime(seconds) {
+      let m = Math.floor(seconds / 60);
+      let s = seconds % 60;
+      return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    }
+
+    function updateDisplay() {
+      timerEl.textContent = formatTime(timeLeft);
+      if (timeLeft === 0) beep.play();
+    }
+
+    function tick() {
+      timeLeft--;
+      updateDisplay();
+
+      if (timeLeft <= 0) {
+        if (phaseEl.textContent.startsWith("Get Ready")) {
+          startWorkout();
+        } else if (!isRest) {
+          isRest = true;
+          timeLeft = restTime;
+          phaseEl.textContent = `Rest (Set ${currentSet + 1})`;
+          speak("Stop and rest");
+        } else {
+          currentSet++;
+          if (currentSet >= sets) {
+            clearInterval(timerInterval);
+            phaseEl.textContent = "Workout complete!";
+            timerEl.textContent = "--:--";
+            speak("Workout complete");
+            return;
+          }
+          isRest = false;
+          timeLeft = workoutTime;
+          phaseEl.textContent = `Workout (Set ${currentSet + 1})`;
+          speak(`Round ${currentSet + 1} begin`);
+        }
+      }
+    }
+
+    function startWorkout() {
+      currentSet = 0;
+      isRest = false;
+      timeLeft = workoutTime;
+      phaseEl.textContent = `Workout (Set 1)`;
+      speak("Round 1 begin");
+    }
+
+    function startTimer() {
+      stopTimer(); // clear previous if running
+      workoutTime = parseInt(document.getElementById('workout').value);
+      restTime = parseInt(document.getElementById('rest').value);
+      sets = parseInt(document.getElementById('sets').value);
+      getReadyTime = parseInt(document.getElementById('getready').value);
+      currentSet = 0;
+      isRest = false;
+      timeLeft = getReadyTime;
+      phaseEl.textContent = "Get Ready...";
+      speak("Get ready");
+      updateDisplay();
+      timerInterval = setInterval(tick, 1000);
+    }
+
+    function stopTimer() {
+      clearInterval(timerInterval);
+    }
+
+    function resetTimer() {
+      stopTimer();
+      timerEl.textContent = "--:--";
+      phaseEl.textContent = "Ready?";
+    }
+  </script>
+</body>
+</html>
