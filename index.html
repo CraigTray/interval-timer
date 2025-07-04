@@ -1,6 +1,7 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
   <title>Custom Interval Timer</title>
   <style>
     body {
@@ -12,6 +13,11 @@
     }
     h1 {
       font-size: 60px;
+    }
+    #totalTime {
+      font-size: 40px;
+      margin-bottom: 10px;
+      color: #0f0;
     }
     #phase {
       font-size: 30px;
@@ -32,6 +38,7 @@
 </head>
 <body>
 
+  <div id="totalTime">Total Time: --:--</div>
   <div id="phase">Ready?</div>
   <h1 id="timer">--:--</h1>
 
@@ -58,11 +65,12 @@
     let currentSet = 0;
     let isRest = false;
     let timeLeft = 0;
+    let totalTimeLeft = 0;
     let timerInterval;
     const timerEl = document.getElementById('timer');
     const phaseEl = document.getElementById('phase');
+    const totalTimeEl = document.getElementById('totalTime');
     const beep = document.getElementById('beep');
-
     const synth = window.speechSynthesis;
 
     function speak(text) {
@@ -80,11 +88,13 @@
 
     function updateDisplay() {
       timerEl.textContent = formatTime(timeLeft);
+      totalTimeEl.textContent = `Total Time: ${formatTime(totalTimeLeft)}`;
       if (timeLeft === 0) beep.play();
     }
 
     function tick() {
       timeLeft--;
+      totalTimeLeft--;
       updateDisplay();
 
       if (timeLeft <= 0) {
@@ -101,6 +111,7 @@
             clearInterval(timerInterval);
             phaseEl.textContent = "Workout complete!";
             timerEl.textContent = "--:--";
+            totalTimeEl.textContent = "Total Time: 00:00";
             speak("Workout complete");
             return;
           }
@@ -126,6 +137,12 @@
       restTime = parseInt(document.getElementById('rest').value);
       sets = parseInt(document.getElementById('sets').value);
       getReadyTime = parseInt(document.getElementById('getready').value);
+
+      // Calculate total workout time
+      totalTimeLeft = getReadyTime + (sets * workoutTime) + (sets * restTime);
+      // Remove the final rest period from total time
+      totalTimeLeft -= restTime;
+
       currentSet = 0;
       isRest = false;
       timeLeft = getReadyTime;
@@ -142,6 +159,7 @@
     function resetTimer() {
       stopTimer();
       timerEl.textContent = "--:--";
+      totalTimeEl.textContent = "Total Time: --:--";
       phaseEl.textContent = "Ready?";
     }
   </script>
