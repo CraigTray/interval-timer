@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Custom Interval Timer</title>
+  <title>Craig’s Custom Interval & Workout Player</title>
   <style>
     body {
       background: #111;
@@ -12,10 +12,10 @@
       padding-top: 40px;
     }
     h1 {
-      font-size: 60px;
+      font-size: 50px;
     }
     #totalTime {
-      font-size: 40px;
+      font-size: 30px;
       margin-bottom: 10px;
       color: #0f0;
     }
@@ -23,53 +23,97 @@
       font-size: 30px;
       margin-bottom: 20px;
     }
-    input {
-      width: 60px;
-      font-size: 18px;
-      margin: 5px;
-      text-align: center;
+    video {
+      width: 90%;
+      max-width: 800px;
+      margin: 20px auto;
+      border: 3px solid #444;
+      border-radius: 10px;
     }
     button {
-      padding: 10px 20px;
+      padding: 12px 24px;
       font-size: 18px;
       margin: 10px;
+      background: #333;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #555;
+    }
+    .hidden {
+      display: none;
     }
   </style>
 </head>
 <body>
 
-  <div id="totalTime">Total Time: --:--</div>
-  <div id="phase">Ready?</div>
-  <h1 id="timer">--:--</h1>
+  <h1>Craig’s Workout Timer</h1>
 
-  <div>
-    Workout Time (sec): <input type="number" id="workout" value="120"><br>
-    Rest Time (sec): <input type="number" id="rest" value="60"><br>
-    Sets: <input type="number" id="sets" value="4"><br>
-    Get Ready (sec): <input type="number" id="getready" value="10">
+  <!-- Main Screen -->
+  <div id="mainScreen">
+    <button onclick="startCustomTimer()">Start Custom Timer</button><br><br>
+    <button onclick="startWorkout('routineA')">Chest/Abs Workout (Mon/Wed/Fri)</button><br>
+    <button onclick="startWorkout('routineB')">Chest/Abs Workout (Tue/Thu)</button>
   </div>
 
-  <div>
-    <button onclick="startTimer()">Begin</button>
-    <button onclick="stopTimer()">Stop</button>
-    <button onclick="resetTimer()">Reset</button>
+  <!-- Custom Timer Screen -->
+  <div id="timerScreen" class="hidden">
+    <div id="totalTime">Total Time: --:--</div>
+    <div id="phase">Ready?</div>
+    <h1 id="timer">--:--</h1>
+    <div>
+      Workout Time (sec): <input type="number" id="workout" value="120"><br>
+      Rest Time (sec): <input type="number" id="rest" value="60"><br>
+      Sets: <input type="number" id="sets" value="4"><br>
+      Get Ready (sec): <input type="number" id="getready" value="10">
+    </div>
+    <div>
+      <button onclick="beginTimer()">Begin</button>
+      <button onclick="stopTimer()">Stop</button>
+      <button onclick="resetTimer()">Back to Main</button>
+    </div>
+  </div>
+
+  <!-- Workout Video Player -->
+  <div id="workoutScreen" class="hidden">
+    <h2 id="workoutName">Workout Name</h2>
+    <video id="workoutVideo" loop autoplay></video><br>
+    <button onclick="nextWorkout()">Next Workout</button>
+    <button onclick="endWorkout()">End Workout</button>
   </div>
 
   <audio id="beep" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
 
   <script>
-    let workoutTime = 120;
-    let restTime = 60;
-    let sets = 4;
-    let getReadyTime = 10;
-    let currentSet = 0;
-    let isRest = false;
-    let timeLeft = 0;
-    let totalTimeLeft = 0;
-    let timerInterval;
-    const timerEl = document.getElementById('timer');
-    const phaseEl = document.getElementById('phase');
-    const totalTimeEl = document.getElementById('totalTime');
+    // Workout Lists
+    const workouts = {
+      routineA: [
+        { name: "Weighted Crunch", video: "Weighted Crunch.mp4" },
+        { name: "Lying Leg Raise", video: "Lying Leg Raises.mp4" },
+        { name: "Plank Walkouts", video: "Walkout.mp4" },
+        { name: "Incline Push-Ups", video: "Incline Pushups.mp4" }
+      ],
+      routineB: [
+        { name: "Reverse Crunch", video: "Reverse Crunch.mp4" },
+        { name: "Russian Twists", video: "Weighted Russian Twist.mp4" },
+        { name: "Side Plank with Leg Lift", video: "Side Plank With Leg Raise.mp4" },
+        { name: "Wide Push-Ups", video: "Wide Arm Pushups.mp4" },
+        { name: "Diamond Push-Ups", video: "Diamond Pushups.mp4" }
+      ]
+    };
+
+    let currentWorkoutList = [];
+    let currentWorkoutIndex = 0;
+
+    // DOM Elements
+    const mainScreen = document.getElementById('mainScreen');
+    const timerScreen = document.getElementById('timerScreen');
+    const workoutScreen = document.getElementById('workoutScreen');
+    const workoutName = document.getElementById('workoutName');
+    const workoutVideo = document.getElementById('workoutVideo');
     const beep = document.getElementById('beep');
     const synth = window.speechSynthesis;
 
@@ -80,76 +124,110 @@
       synth.speak(utter);
     }
 
-    function formatTime(seconds) {
-      let m = Math.floor(seconds / 60);
-      let s = seconds % 60;
-      return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    function startWorkout(routine) {
+      mainScreen.classList.add('hidden');
+      workoutScreen.classList.remove('hidden');
+      currentWorkoutList = workouts[routine];
+      currentWorkoutIndex = 0;
+      loadWorkout();
     }
 
-    function updateDisplay() {
-      timerEl.textContent = formatTime(timeLeft);
-      totalTimeEl.textContent = `Total Time: ${formatTime(totalTimeLeft)}`;
-      if (timeLeft === 0) beep.play();
+    function loadWorkout() {
+      const workout = currentWorkoutList[currentWorkoutIndex];
+      workoutName.textContent = workout.name;
+      workoutVideo.src = workout.video;
+      workoutVideo.load();
+      workoutVideo.play();
+      speak(workout.name);
+    }
+
+    function nextWorkout() {
+      currentWorkoutIndex++;
+      if (currentWorkoutIndex < currentWorkoutList.length) {
+        loadWorkout();
+      } else {
+        endWorkout();
+      }
+    }
+
+    function endWorkout() {
+      workoutScreen.classList.add('hidden');
+      mainScreen.classList.remove('hidden');
+    }
+
+    // Custom Timer Functions
+    let timerInterval, workoutTime, restTime, sets, getReadyTime, timeLeft, totalTimeLeft, currentSet, isRest;
+
+    function startCustomTimer() {
+      mainScreen.classList.add('hidden');
+      timerScreen.classList.remove('hidden');
+    }
+
+    function beginTimer() {
+      stopTimer();
+      workoutTime = parseInt(document.getElementById('workout').value);
+      restTime = parseInt(document.getElementById('rest').value);
+      sets = parseInt(document.getElementById('sets').value);
+      getReadyTime = parseInt(document.getElementById('getready').value);
+      totalTimeLeft = getReadyTime + sets * (workoutTime + restTime) - restTime;
+      timeLeft = getReadyTime;
+      currentSet = 0;
+      isRest = false;
+      document.getElementById('phase').textContent = "Get Ready...";
+      updateTimerDisplay();
+      timerInterval = setInterval(tick, 1000);
+      speak("Get ready");
     }
 
     function tick() {
       timeLeft--;
       totalTimeLeft--;
-      updateDisplay();
+      updateTimerDisplay();
 
       if (timeLeft <= 0) {
-        if (phaseEl.textContent.startsWith("Get Ready")) {
-          startWorkout();
+        if (document.getElementById('phase').textContent.startsWith("Get Ready")) {
+          startWorkoutPhase();
         } else if (!isRest) {
           isRest = true;
           timeLeft = restTime;
-          phaseEl.textContent = `Rest (Set ${currentSet + 1})`;
+          document.getElementById('phase').textContent = `Rest (Set ${currentSet + 1})`;
           speak("Stop and rest");
         } else {
           currentSet++;
           if (currentSet >= sets) {
             clearInterval(timerInterval);
-            phaseEl.textContent = "Workout complete!";
-            timerEl.textContent = "--:--";
-            totalTimeEl.textContent = "Total Time: 00:00";
+            document.getElementById('phase').textContent = "Workout complete!";
+            document.getElementById('timer').textContent = "--:--";
+            document.getElementById('totalTime').textContent = "Total Time: 00:00";
             speak("Workout complete");
             return;
           }
           isRest = false;
           timeLeft = workoutTime;
-          phaseEl.textContent = `Workout (Set ${currentSet + 1})`;
+          document.getElementById('phase').textContent = `Workout (Set ${currentSet + 1})`;
           speak(`Round ${currentSet + 1} begin`);
         }
       }
     }
 
-    function startWorkout() {
-      currentSet = 0;
-      isRest = false;
+    function startWorkoutPhase() {
       timeLeft = workoutTime;
-      phaseEl.textContent = `Workout (Set 1)`;
+      document.getElementById('phase').textContent = `Workout (Set 1)`;
       speak("Round 1 begin");
     }
 
-    function startTimer() {
-      stopTimer(); // clear previous if running
-      workoutTime = parseInt(document.getElementById('workout').value);
-      restTime = parseInt(document.getElementById('rest').value);
-      sets = parseInt(document.getElementById('sets').value);
-      getReadyTime = parseInt(document.getElementById('getready').value);
+    function updateTimerDisplay() {
+      const timerEl = document.getElementById('timer');
+      const totalTimeEl = document.getElementById('totalTime');
+      timerEl.textContent = formatTime(timeLeft);
+      totalTimeEl.textContent = `Total Time: ${formatTime(totalTimeLeft)}`;
+      if (timeLeft === 0) beep.play();
+    }
 
-      // Calculate total workout time
-      totalTimeLeft = getReadyTime + (sets * workoutTime) + (sets * restTime);
-      // Remove the final rest period from total time
-      totalTimeLeft -= restTime;
-
-      currentSet = 0;
-      isRest = false;
-      timeLeft = getReadyTime;
-      phaseEl.textContent = "Get Ready...";
-      speak("Get ready");
-      updateDisplay();
-      timerInterval = setInterval(tick, 1000);
+    function formatTime(seconds) {
+      let m = Math.floor(seconds / 60);
+      let s = seconds % 60;
+      return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     }
 
     function stopTimer() {
@@ -158,9 +236,8 @@
 
     function resetTimer() {
       stopTimer();
-      timerEl.textContent = "--:--";
-      totalTimeEl.textContent = "Total Time: --:--";
-      phaseEl.textContent = "Ready?";
+      timerScreen.classList.add('hidden');
+      mainScreen.classList.remove('hidden');
     }
   </script>
 </body>
